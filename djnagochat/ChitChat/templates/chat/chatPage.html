@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+
+        }
+
+        .chat-container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 10px;
+        }
+
+        .chat-header {
+            text-align: center;
+            background-color: #075e54;
+            color: #fff;
+            padding: 10px;
+            border-radius: 10px 10px 0 0;
+        }
+
+        .chat-header h1 {
+            font-size: 24px;
+        }
+
+        .chat__item__container {
+            background-color: #f5f5f5;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+        }
+
+        .chat__item {
+            background-color: #dcf8c6;
+            padding: 5px 10px;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            max-width: 70%;
+        }
+
+        .chat__item--mine {
+            background-color: #075e54;
+            color: #fff;
+            margin-left: auto;
+        }
+
+        .chat__username {
+            font-weight: bold;
+        }
+
+        .chat__time {
+            font-size: 10px;
+            text-align: right;
+            color: #777;
+        }
+
+        .input-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .input-container input {
+            width: calc(100% - 60px);
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .input-container button {
+            padding: 5px 10px;
+            background-color: #075e54;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .input-container button:hover {
+            background-color: #0a7d66;
+        }
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px 5px;
+            background-color: #075e54;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .button:hover {
+            background-color: #0a7d66;
+        }
+
+        .button i {
+            margin-right: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>Group   :   {{ room.name }}  ({{ room.get_online_count}})</h1>
+        </div>
+        <div class="chat__item__container" id="chat-log">
+                
+        </div>
+        <div class="input-container">
+            <input id="id_message_send_input" autocomplete="off" placeholder="Type your message here...">
+            <button id="id_message_send_button">Send</button>
+        </div>
+        <div class="container">
+            <a href="{% url 'create-room' %}" class="button">
+                <i class="fas fa-arrow-left"></i> Back to Rooms
+            </a>
+            <a href="{% url 'logout-user' %}" class="button">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const username = "{{ request.user.username }}";
+        const roomName = "{{ room.name }}";
+        const chatSocket = new WebSocket(
+            'ws://' + window.location.host + '/ws/chat/' + roomName + '/'
+        );
+    
+        chatSocket.onmessage = function (e) {
+            const data = JSON.parse(e.data);
+    
+            if (data.messages) {
+                // Load previous messages
+                const chatLog = document.querySelector('#chat-log');
+                data.messages.forEach(msg => {
+                    const msgElement = document.createElement('div');
+                    msgElement.className = 'chat__item' + (msg.username === username ? ' chat__item--mine' : '');
+                    msgElement.innerHTML = `
+                        <div class="chat__username">${msg.username}</div>
+                        <div>${msg.message}</div>
+                        <div class="chat__time">${new Date(msg.time).toLocaleTimeString()}</div>
+                    `;
+                    chatLog.appendChild(msgElement);
+                });
+                chatLog.scrollTop = chatLog.scrollHeight;
+            } else if (data.message) {
+                // Handle incoming messages
+                const message = data.message;
+                const chatLog = document.querySelector('#chat-log');
+                const msgElement = document.createElement('div');
+                msgElement.className = 'chat__item' + (data.username === username ? ' chat__item--mine' : '');
+                msgElement.innerHTML = `
+                    <div class="chat__username">${data.username}</div>
+                    <div>${data.message}</div>
+                    <div class="chat__time">${data.time}</div>
+                `;
+                chatLog.appendChild(msgElement);
+                chatLog.scrollTop = chatLog.scrollHeight;
+            }
+        };
+    
+        chatSocket.onclose = function (e) {
+            console.error('Chat socket closed unexpectedly');
+        };
+    
+        document.querySelector('#id_message_send_button').onclick = function (e) {
+            const messageInput = document.querySelector('#id_message_send_input');
+            const message = messageInput.value;
+            const time = new Date().toLocaleTimeString();
+            chatSocket.send(JSON.stringify({
+                'message': message,
+                'username': username,
+                'time': time,
+            }));
+            messageInput.value = '';
+        };
+    </script>
+    
+</body>
+
+</html>

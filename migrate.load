@@ -1,0 +1,5 @@
+LOAD DATABASE
+     FROM sqlite:///home/mpa/python/mihir/django_chat/djangochat.sqlite3
+     INTO postgresql://postgres:postgres@localhost:5432/chat_project_db;
+
+ALTER SCHEMA 'main' RENAME TO 'public';

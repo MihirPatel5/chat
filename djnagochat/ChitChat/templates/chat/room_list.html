@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        h1 {
+            font-size: 24px;
+            text-align: center;
+            color: #075e54;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            margin: 10px 0;
+            background-color: #dcf8c6;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        li a {
+            text-decoration: none;
+            color: #075e54;
+            font-weight: bold;
+        }
+
+        li a:hover {
+            color: #0a7d66;
+            text-decoration: underline;
+        }
+
+        .logout {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .logout a {
+            text-decoration: none;
+            color: #fff;
+            background-color: #075e54;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .logout a:hover {
+            background-color: #0a7d66;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Chat Rooms</h1>
+        <ul>
+            {% for room in rooms %}
+            <li><a href="{% url 'chatPage' room.name %}">{{ room.name }} ({{ room.get_online_count }})</a></li>
+            {% endfor %}
+        </ul>
+        <div class="logout">
+            <a href="{% url 'logout-user' %}">Logout</a>
+        </div>
+    </div>
+</body>
+
+</html>

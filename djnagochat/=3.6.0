@@ -1,0 +1,9 @@
+Collecting asgiref
+  Using cached asgiref-3.8.1-py3-none-any.whl (23 kB)
+Requirement already satisfied, skipping upgrade: typing-extensions>=4; python_version < "3.11" in /home/mpa/python mihir/django chat/env/lib/python3.8/site-packages (from asgiref) (4.12.2)
+Installing collected packages: asgiref
+  Attempting uninstall: asgiref
+    Found existing installation: asgiref 3.5.2
+    Uninstalling asgiref-3.5.2:
+      Successfully uninstalled asgiref-3.5.2
+Successfully installed asgiref-3.8.1
