@@ -48,18 +48,19 @@
 
         .chat__item--mine {
             background-color: #075e54;
-            color: #fff;
+            color: #ffffff;
             margin-left: auto;
         }
 
         .chat__username {
             font-weight: bold;
+            font-size: small;
         }
 
         .chat__time {
             font-size: 10px;
             text-align: right;
-            color: #777;
+            color: #af9f9f; 
         }
 
         .input-container {
@@ -88,10 +89,12 @@
         .input-container button:hover {
             background-color: #0a7d66;
         }
+
         .back-link {
             text-align: center;
             margin-top: 20px;
         }
+
         .button {
             display: inline-block;
             padding: 10px 20px;
@@ -111,16 +114,45 @@
         .button i {
             margin-right: 5px;
         }
+
+        .unread-tick {
+            color: grey;
+        }
+
+        .read-tick {
+            color: blue;
+        }
+
+        .chat__unread .chat__read-status {
+            color: gray;
+            /* Single tick */
+        }
+
+        .chat__read .chat__read-status {
+            color: blue;
+            /* Double tick */
+        }
+
+        .chat__day-label {
+            font-weight: bold;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .chat__date-header{
+            text-align: center;
+            opacity: 50%;
+        }
     </style>
 </head>
 
 <body>
     <div class="chat-container">
         <div class="chat-header">
-            <h1>Group   :   {{ room.name }}  ({{ room.get_online_count}})</h1>
+            <a href="/home/mpa/python mihir/django_chat/chat/djnagochat/ChitChat/templates/image.png"></a>
+            <h1>Group : {{ room.name }} ({{ room.get_online_count}})</h1>
         </div>
         <div class="chat__item__container" id="chat-log">
-                
+
         </div>
         <div class="input-container">
             <input id="id_message_send_input" autocomplete="off" placeholder="Type your message here...">
@@ -142,44 +174,58 @@
         const chatSocket = new WebSocket(
             'ws://' + window.location.host + '/ws/chat/' + roomName + '/'
         );
-    
         chatSocket.onmessage = function (e) {
             const data = JSON.parse(e.data);
-    
+        
             if (data.messages) {
-                // Load previous messages
                 const chatLog = document.querySelector('#chat-log');
+                let lastDateGroup = null;  
+        
                 data.messages.forEach(msg => {
+                    const isMine = msg.username === username;
+        
+                    if (msg.day_label !== lastDateGroup) {
+                        const dateHeader = document.createElement('div');
+                        dateHeader.className = 'chat__date-header';
+                        dateHeader.innerText = msg.day_label;  
+                        chatLog.appendChild(dateHeader);
+                        lastDateGroup = msg.day_label;
+                    }
+        
                     const msgElement = document.createElement('div');
-                    msgElement.className = 'chat__item' + (msg.username === username ? ' chat__item--mine' : '');
+                    msgElement.className = 'chat__item' + (isMine ? ' chat__item--mine' : '');
+        
+                    const ticks = isMine ? `<span class="ticks">${msg.is_read ? '✓✓' : msg.delivered ? '✓✓' : '✓'}</span>` : '';
+        
                     msgElement.innerHTML = `
                         <div class="chat__username">${msg.username}</div>
                         <div>${msg.message}</div>
-                        <div class="chat__time">${new Date(msg.time).toLocaleTimeString()}</div>
+                        <div class="chat__time">${new Date(msg.time).toLocaleTimeString()} ${ticks}</div>
                     `;
                     chatLog.appendChild(msgElement);
                 });
                 chatLog.scrollTop = chatLog.scrollHeight;
             } else if (data.message) {
-                // Handle incoming messages
-                const message = data.message;
                 const chatLog = document.querySelector('#chat-log');
+                const isMine = data.username === username;
                 const msgElement = document.createElement('div');
-                msgElement.className = 'chat__item' + (data.username === username ? ' chat__item--mine' : '');
+                msgElement.className = 'chat__item' + (isMine ? ' chat__item--mine' : '');
+        
+                const ticks = isMine ? `<span class="ticks">${data.is_read ? '✓✓' : data.delivered ? '✓✓' : '✓'}</span>` : '';
+        
                 msgElement.innerHTML = `
                     <div class="chat__username">${data.username}</div>
                     <div>${data.message}</div>
-                    <div class="chat__time">${data.time}</div>
+                    <div class="chat__time">${data.time} ${ticks}</div>
                 `;
                 chatLog.appendChild(msgElement);
                 chatLog.scrollTop = chatLog.scrollHeight;
             }
         };
-    
         chatSocket.onclose = function (e) {
             console.error('Chat socket closed unexpectedly');
         };
-    
+        
         document.querySelector('#id_message_send_button').onclick = function (e) {
             const messageInput = document.querySelector('#id_message_send_input');
             const message = messageInput.value;
@@ -192,7 +238,7 @@
             messageInput.value = '';
         };
     </script>
-    
+
 </body>
 
 </html>
