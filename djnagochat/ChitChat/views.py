@@ -1,11 +1,15 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from .forms import LoginForm, SignupForm
-from .models import Room
+from .models import Room,Message
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
 from asgiref.sync import sync_to_async
+from django.http import JsonResponse
+from django.core.files.storage import default_storage
+from django.views.decorators.csrf import csrf_exempt
+
 
 @login_required
 def chatPage(request, room_name):
@@ -64,3 +68,13 @@ def login_user(request):
 def logout_user(request):
     logout(request)
     return redirect('login-user')
+
+@csrf_exempt
+def upload_media(request):
+    if request.method == 'POST':
+        media_file = request.FILES.get('media')
+        if media_file:
+            message = Message.objects.create(media_file=media_file)
+            return JsonResponse({'media_url': message.media_file.url})
+        return JsonResponse({'error': 'No media file provided'}, status=400)
+    return JsonResponse({'error': 'Invalid request method'}, status=405)

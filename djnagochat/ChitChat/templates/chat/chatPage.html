@@ -7,7 +7,6 @@
         body {
             font-family: Arial, sans-serif;
             background-color: #f0f0f0;
-
         }
 
         .chat-container {
@@ -60,7 +59,7 @@
         .chat__time {
             font-size: 10px;
             text-align: right;
-            color: #af9f9f; 
+            color: #af9f9f;
         }
 
         .input-container {
@@ -70,7 +69,7 @@
             margin-top: 10px;
         }
 
-        .input-container input {
+        .input-container input[type="text"] {
             width: calc(100% - 60px);
             padding: 5px;
             border: 1px solid #ccc;
@@ -115,32 +114,15 @@
             margin-right: 5px;
         }
 
-        .unread-tick {
-            color: grey;
-        }
-
-        .read-tick {
-            color: blue;
-        }
-
-        .chat__unread .chat__read-status {
-            color: gray;
-            /* Single tick */
-        }
-
-        .chat__read .chat__read-status {
-            color: blue;
-            /* Double tick */
-        }
-
-        .chat__day-label {
-            font-weight: bold;
-            text-align: center;
-            margin: 10px 0;
-        }
-        .chat__date-header{
+        .chat__date-header {
             text-align: center;
             opacity: 50%;
+            margin-bottom: 10px;
+        }
+
+        img.media {
+            max-width: 100%;
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -148,15 +130,16 @@
 <body>
     <div class="chat-container">
         <div class="chat-header">
-            <a href="/home/mpa/python mihir/django_chat/chat/djnagochat/ChitChat/templates/image.png"></a>
-            <h1>Group : {{ room.name }} ({{ room.get_online_count}})</h1>
+            <h1>Group : {{ room.name }} ({{ room.get_online_count }})</h1>
         </div>
         <div class="chat__item__container" id="chat-log">
-
         </div>
         <div class="input-container">
-            <input id="id_message_send_input" autocomplete="off" placeholder="Type your message here...">
-            <button id="id_message_send_button">Send</button>
+            <form id="chat-message-form">
+                <input type="text" id="id_message_send_input" placeholder="Type your message">
+                <input type="file" id="id_media_send_input" accept="image/*,video/*">
+                <button type="submit">Send</button>
+            </form>
         </div>
         <div class="container">
             <a href="{% url 'create-room' %}" class="button">
@@ -174,68 +157,92 @@
         const chatSocket = new WebSocket(
             'ws://' + window.location.host + '/ws/chat/' + roomName + '/'
         );
+
         chatSocket.onmessage = function (e) {
             const data = JSON.parse(e.data);
-        
+            const chatLog = document.querySelector('#chat-log');
+
             if (data.messages) {
-                const chatLog = document.querySelector('#chat-log');
-                let lastDateGroup = null;  
-        
+                chatLog.innerHTML = '';
+                let lastDateGroup = null;
+
                 data.messages.forEach(msg => {
                     const isMine = msg.username === username;
-        
+
                     if (msg.day_label !== lastDateGroup) {
                         const dateHeader = document.createElement('div');
                         dateHeader.className = 'chat__date-header';
-                        dateHeader.innerText = msg.day_label;  
+                        dateHeader.innerText = msg.day_label;
                         chatLog.appendChild(dateHeader);
                         lastDateGroup = msg.day_label;
                     }
-        
+
                     const msgElement = document.createElement('div');
                     msgElement.className = 'chat__item' + (isMine ? ' chat__item--mine' : '');
-        
-                    const ticks = isMine ? `<span class="ticks">${msg.is_read ? '✓✓' : msg.delivered ? '✓✓' : '✓'}</span>` : '';
-        
+
+                    const ticks = isMine ? `<span class="ticks">${msg.is_read ? '✓✓' : '✓'}</span>` : '';
+
                     msgElement.innerHTML = `
                         <div class="chat__username">${msg.username}</div>
-                        <div>${msg.message}</div>
+                        <div>${msg.message ? msg.message : ''}</div>
+                        ${msg.media_url ? `<img class="media" src="${msg.media_url}" alt="media file">` : ''}
                         <div class="chat__time">${new Date(msg.time).toLocaleTimeString()} ${ticks}</div>
                     `;
                     chatLog.appendChild(msgElement);
                 });
+
                 chatLog.scrollTop = chatLog.scrollHeight;
-            } else if (data.message) {
-                const chatLog = document.querySelector('#chat-log');
+            } else {
+                // New message or media
                 const isMine = data.username === username;
                 const msgElement = document.createElement('div');
                 msgElement.className = 'chat__item' + (isMine ? ' chat__item--mine' : '');
-        
-                const ticks = isMine ? `<span class="ticks">${data.is_read ? '✓✓' : data.delivered ? '✓✓' : '✓'}</span>` : '';
-        
+
+                const ticks = isMine ? `<span class="ticks">${data.is_read ? '✓✓' : '✓'}</span>` : '';
+
                 msgElement.innerHTML = `
                     <div class="chat__username">${data.username}</div>
-                    <div>${data.message}</div>
-                    <div class="chat__time">${data.time} ${ticks}</div>
+                    <div>${data.message ? data.message : ''}</div>
+                    ${data.media_url ? `<img class="media" src="${data.media_url}" alt="media file">` : ''}
+                    <div class="chat__time">${new Date(data.time).toLocaleTimeString()} ${ticks}</div>
                 `;
                 chatLog.appendChild(msgElement);
                 chatLog.scrollTop = chatLog.scrollHeight;
             }
         };
-        chatSocket.onclose = function (e) {
-            console.error('Chat socket closed unexpectedly');
-        };
+
+        document.querySelector('#chat-message-form').onsubmit = function (e) {
+            e.preventDefault();
+            const messageInputDom = document.querySelector('#id_message_send_input');
+            const mediaInputDom = document.querySelector('#id_media_send_input');
+            const message = messageInputDom.value;
+            const mediaFile = mediaInputDom.files[0];
         
-        document.querySelector('#id_message_send_button').onclick = function (e) {
-            const messageInput = document.querySelector('#id_message_send_input');
-            const message = messageInput.value;
-            const time = new Date().toLocaleTimeString();
-            chatSocket.send(JSON.stringify({
-                'message': message,
-                'username': username,
-                'time': time,
-            }));
-            messageInput.value = '';
+            if (message || mediaFile) {
+                const formData = new FormData();
+                formData.append('message', message);
+                if (mediaFile) {
+                    formData.append('media', mediaFile);
+                }
+        
+                fetch(`/upload_media/`, {
+                    method: 'POST',
+                    body: formData,
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.media_url) {
+                        chatSocket.send(JSON.stringify({
+                            'message': message,
+                            'media_url': data.media_url,
+                        }));
+                    }
+                })
+                .catch(error => console.error('Error uploading media:', error));
+        
+                messageInputDom.value = '';
+                mediaInputDom.value = '';
+            }
         };
     </script>
 
