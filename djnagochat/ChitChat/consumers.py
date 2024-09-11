@@ -7,17 +7,22 @@ from datetime import datetime, timedelta
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.room_name = self.scope['url_route']['kwargs']['room_name']
-        self.room_group_name = f'chat_{self.room_name}'
+        self.room_group_name = f"chat_{self.room_name}"
+
         self.room = await sync_to_async(Room.objects.get)(name=self.room_name)
 
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
         )
+
         await self.accept()
 
         previous_messages = await self.get_previous_messages()
-        await self.send(text_data=json.dumps({'messages': previous_messages}))
+
+        await self.send(text_data=json.dumps({
+            'messages': previous_messages
+        }))
 
     async def disconnect(self, close_code):
         await self.channel_layer.group_discard(
@@ -39,7 +44,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             await sync_to_async(Message.objects.create)(
                 user=self.scope['user'],
-                room=self.room,
+                room=self.room,  
                 content=message,
                 media_file=media_file,
                 timestamp=timestamp
@@ -53,7 +58,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'media_url': media_url,
                 'username': username,
                 'time': timestamp,
-                'is_read': False
+                'is_read': False  
             }
         )
 
@@ -96,7 +101,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             formatted_message = {
                 'username': msg['user__username'],
                 'message': msg['content'],
-                'media_url': msg['media_file'] if msg['media_file'] else '',    
+                'media_url': msg['media_file'] if msg['media_file'] else '',
                 'time': msg['timestamp'].isoformat(),
                 'day_label': day_label,
                 'is_read': msg['is_read']
@@ -107,5 +112,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
             else:
                 formatted_messages.append(formatted_message)
 
-        return formatted_messages
+        await sync_to_async(self.mark_messages_as_read)()
+
+        return unread_messages + formatted_messages
+
+    def mark_messages_as_read(self):
+        Message.objects.filter(
+            room=self.room,
+            is_read=False,
+            user__username=self.scope["user"].username
+        ).update(is_read=True)
 

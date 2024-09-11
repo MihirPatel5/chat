@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect,get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from .forms import LoginForm, SignupForm
 from .models import Room,Message
@@ -73,8 +73,17 @@ def logout_user(request):
 def upload_media(request):
     if request.method == 'POST':
         media_file = request.FILES.get('media')
-        if media_file:
-            message = Message.objects.create(media_file=media_file)
-            return JsonResponse({'media_url': message.media_file.url})
-        return JsonResponse({'error': 'No media file provided'}, status=400)
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
+        room_name = request.POST.get('room')  # Ensure the room name is passed in the request
+        room = get_object_or_404(Room, name=room_name)  # Fetch the room object
+
+        # Create the message with the media file and the associated room
+        message = Message.objects.create(
+            media_file=media_file,
+            room=room,
+            username=request.user.username  # Assuming you want to store the user as well
+        )
+
+        # Return the media URL to the frontend
+        return JsonResponse({
+            'media_url': message.media_file.url
+        })

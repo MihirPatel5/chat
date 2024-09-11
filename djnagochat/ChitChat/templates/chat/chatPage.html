@@ -10,7 +10,7 @@
         }
 
         .chat-container {
-            max-width: 400px;
+            max-width: 600px;
             margin: 0 auto;
             padding: 10px;
         }
@@ -28,26 +28,26 @@
         }
 
         .chat__item__container {
-            background-color: #f5f5f5;
+            background-color: #f0ebeb;
             border: 1px solid #ccc;
             border-radius: 5px;
             margin-bottom: 10px;
             padding: 10px;
-            height: 300px;
+            height: 500px;
             overflow-y: auto;
         }
 
         .chat__item {
-            background-color: #dcf8c6;
-            padding: 5px 10px;
-            border-radius: 5px;
+            background-color: #ffffff;
+            padding: 5px 20px;
+            border-radius: 15px;
             margin-bottom: 5px;
-            max-width: 70%;
+            max-width: fit-content;
         }
 
         .chat__item--mine {
-            background-color: #075e54;
-            color: #ffffff;
+            background-color: #dcf8c6;
+            color: black;
             margin-left: auto;
         }
 
@@ -59,6 +59,7 @@
         .chat__time {
             font-size: 10px;
             text-align: right;
+            padding-left: 20px;
             color: #af9f9f;
         }
 
@@ -70,19 +71,22 @@
         }
 
         .input-container input[type="text"] {
-            width: calc(100% - 60px);
+            width: 590px;
             padding: 5px;
             border: 1px solid #ccc;
             border-radius: 5px;
         }
 
         .input-container button {
-            padding: 5px 10px;
+            padding: 7px 12px;
             background-color: #075e54;
+            margin-top: 5px;
             color: #fff;
             border: none;
-            border-radius: 5px;
+            border-radius: 50px;
             cursor: pointer;
+            display: math;
+            margin-left: 280px;
         }
 
         .input-container button:hover {
@@ -97,13 +101,13 @@
         .button {
             display: inline-block;
             padding: 10px 20px;
-            margin: 10px 5px;
+            margin: 10px 50px;
             background-color: #075e54;
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 10px;
             cursor: pointer;
-            text-decoration: none;
+            text-decoration: blink;
         }
 
         .button:hover {
@@ -138,7 +142,7 @@
             <form id="chat-message-form">
                 <input type="text" id="id_message_send_input" placeholder="Type your message">
                 <input type="file" id="id_media_send_input" accept="image/*,video/*">
-                <button type="submit">Send</button>
+                <button type="submit"><i class="fas fa-solid fa-paper-plane"></i></button>
             </form>
         </div>
         <div class="container">
@@ -157,49 +161,54 @@
         const chatSocket = new WebSocket(
             'ws://' + window.location.host + '/ws/chat/' + roomName + '/'
         );
-
-        chatSocket.onmessage = function (e) {
-            const data = JSON.parse(e.data);
+    
+        function renderMessages(messages) {
             const chatLog = document.querySelector('#chat-log');
-
-            if (data.messages) {
-                chatLog.innerHTML = '';
-                let lastDateGroup = null;
-
-                data.messages.forEach(msg => {
-                    const isMine = msg.username === username;
-
-                    if (msg.day_label !== lastDateGroup) {
-                        const dateHeader = document.createElement('div');
-                        dateHeader.className = 'chat__date-header';
-                        dateHeader.innerText = msg.day_label;
-                        chatLog.appendChild(dateHeader);
-                        lastDateGroup = msg.day_label;
-                    }
-
-                    const msgElement = document.createElement('div');
-                    msgElement.className = 'chat__item' + (isMine ? ' chat__item--mine' : '');
-
-                    const ticks = isMine ? `<span class="ticks">${msg.is_read ? '✓✓' : '✓'}</span>` : '';
-
-                    msgElement.innerHTML = `
-                        <div class="chat__username">${msg.username}</div>
-                        <div>${msg.message ? msg.message : ''}</div>
-                        ${msg.media_url ? `<img class="media" src="${msg.media_url}" alt="media file">` : ''}
-                        <div class="chat__time">${new Date(msg.time).toLocaleTimeString()} ${ticks}</div>
-                    `;
-                    chatLog.appendChild(msgElement);
-                });
-
-                chatLog.scrollTop = chatLog.scrollHeight;
-            } else {
-                // New message or media
-                const isMine = data.username === username;
+            chatLog.innerHTML = ''; 
+            let lastDateGroup = null;
+    
+            messages.forEach(msg => {
+                const isMine = msg.username === username;  
+    
+                if (msg.day_label !== lastDateGroup) {
+                    const dateHeader = document.createElement('div');
+                    dateHeader.className = 'chat__date-header';
+                    dateHeader.innerText = msg.day_label;
+                    chatLog.appendChild(dateHeader);
+                    lastDateGroup = msg.day_label;
+                }
+    
                 const msgElement = document.createElement('div');
                 msgElement.className = 'chat__item' + (isMine ? ' chat__item--mine' : '');
-
+    
+                const ticks = isMine ? `<span class="ticks">${msg.is_read ? '✓✓' : '✓'}</span>` : '';
+    
+                msgElement.innerHTML = `
+                    <div class="chat__username">${msg.username}</div>
+                    <div>${msg.message ? msg.message : ''}</div>
+                    ${msg.media_url ? `<img class="media" src="${msg.media_url}" alt="media file">` : ''}
+                    <div class="chat__time">${new Date(msg.time).toLocaleTimeString()} ${ticks}</div>
+                `;
+                chatLog.appendChild(msgElement);
+            });
+    
+            chatLog.scrollTop = chatLog.scrollHeight;  
+        }
+    
+        chatSocket.onmessage = function (e) {
+            const data = JSON.parse(e.data);
+    
+            if (data.messages) {
+                renderMessages(data.messages);
+            } else {
+                const isMine = data.username === username;
+                const chatLog = document.querySelector('#chat-log');
+    
+                const msgElement = document.createElement('div');
+                msgElement.className = 'chat__item' + (isMine ? ' chat__item--mine' : '');
+    
                 const ticks = isMine ? `<span class="ticks">${data.is_read ? '✓✓' : '✓'}</span>` : '';
-
+    
                 msgElement.innerHTML = `
                     <div class="chat__username">${data.username}</div>
                     <div>${data.message ? data.message : ''}</div>
@@ -207,20 +216,22 @@
                     <div class="chat__time">${new Date(data.time).toLocaleTimeString()} ${ticks}</div>
                 `;
                 chatLog.appendChild(msgElement);
-                chatLog.scrollTop = chatLog.scrollHeight;
+                chatLog.scrollTop = chatLog.scrollHeight;  
             }
         };
-
+    
         document.querySelector('#chat-message-form').onsubmit = function (e) {
             e.preventDefault();
             const messageInputDom = document.querySelector('#id_message_send_input');
             const mediaInputDom = document.querySelector('#id_media_send_input');
             const message = messageInputDom.value;
             const mediaFile = mediaInputDom.files[0];
+            const roomName = "{{ room.name }}";  
         
             if (message || mediaFile) {
                 const formData = new FormData();
                 formData.append('message', message);
+                formData.append('room', roomName);
                 if (mediaFile) {
                     formData.append('media', mediaFile);
                 }
@@ -231,21 +242,20 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.media_url) {
-                        chatSocket.send(JSON.stringify({
-                            'message': message,
-                            'media_url': data.media_url,
-                        }));
-                    }
+                    chatSocket.send(JSON.stringify({
+                        'message': message,
+                        'media_url': data.media_url || '',  
+                    }));
                 })
                 .catch(error => console.error('Error uploading media:', error));
         
-                messageInputDom.value = '';
-                mediaInputDom.value = '';
+                messageInputDom.value = '';  
+                mediaInputDom.value = '';  
             }
         };
+        
     </script>
-
+    
 </body>
 
 </html>
