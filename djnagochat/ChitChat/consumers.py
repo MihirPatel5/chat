@@ -31,36 +31,37 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def receive(self, text_data):
-        text_data_json = json.loads(text_data)
-        message = text_data_json.get('message', None)
-        media_url = text_data_json.get('media_url', None)
-        username = self.scope['user'].username
-        timestamp = datetime.now().isoformat()
+            text_data_json = json.loads(text_data)
+            message = text_data_json.get('message', None)
+            media_url = text_data_json.get('media_url', None)
+            username = self.scope['user'].username
+            timestamp = datetime.now().isoformat()
 
-        if message or media_url:
-            media_file = None
-            if media_url:
-                media_file = media_url  
+            if message or media_url:
+                media_file = None
+                if media_url:
+                    media_file = media_url
 
-            await sync_to_async(Message.objects.create)(
-                user=self.scope['user'],
-                room=self.room,  
-                content=message,
-                media_file=media_file,
-                timestamp=timestamp
+                await sync_to_async(Message.objects.create)(
+                    user=self.scope['user'],
+                    room=self.room,
+                    content=message,
+                    media_file=media_file,
+                    timestamp=timestamp
+                )
+
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'chat_message',
+                    'message': message,
+                    'media_url': media_url,
+                    'username': username,
+                    'time': timestamp,
+                    'is_read': False
+                }
             )
 
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'chat_message',
-                'message': message,
-                'media_url': media_url,
-                'username': username,
-                'time': timestamp,
-                'is_read': False  
-            }
-        )
 
     async def chat_message(self, event):
         message = event.get('message', '')

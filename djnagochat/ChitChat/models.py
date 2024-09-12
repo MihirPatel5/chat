@@ -16,7 +16,7 @@ class Room(models.Model):
 class Message(models.Model):
     room = models.ForeignKey(Room, related_name='messages', on_delete=models.CASCADE)
     user = models.ForeignKey(User, related_name='messages', on_delete=models.CASCADE)
-    content = models.TextField(blank=True)
+    content = models.TextField(blank=True,null=True)
     media_file = models.FileField(upload_to='uploads/', null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)

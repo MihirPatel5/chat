@@ -1,13 +1,9 @@
-from django.shortcuts import render, redirect,get_object_or_404
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from .forms import LoginForm, SignupForm
-from .models import Room,Message
+from .models import Room, Message
 from django.contrib.auth.decorators import login_required
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_protect
-from asgiref.sync import sync_to_async
 from django.http import JsonResponse
-from django.core.files.storage import default_storage
 from django.views.decorators.csrf import csrf_exempt
 
 
@@ -17,6 +13,7 @@ def chatPage(request, room_name):
     if request.user not in room.users.all():
         return redirect('join-room', room_name=room_name)
     return render(request, 'chat/chatPage.html', {'room': room})
+
 
 @login_required
 def create_room(request):
@@ -30,16 +27,18 @@ def create_room(request):
 
 @login_required
 def join_room(request, room_name):
-    room = Room.objects.get(name=room_name)
+    room = get_object_or_404(Room, name=room_name)
     if room:
         room.users.add(request.user)
         return redirect('chatPage', room_name=room_name)
     return redirect('chat-index')
 
+
 @login_required
 def index_view(request):
     rooms = Room.objects.all()
     return render(request, 'chat/room_list.html', {'rooms': rooms})
+
 
 def register(request):
     if request.method == 'POST':
@@ -50,6 +49,7 @@ def register(request):
     else:
         form = SignupForm()
     return render(request, 'chat/register.html', {'form': form})
+
 
 def login_user(request):
     if request.method == 'POST':
@@ -65,25 +65,44 @@ def login_user(request):
         form = LoginForm()
     return render(request, 'chat/loginpage.html', {'form': form})
 
+
 def logout_user(request):
     logout(request)
     return redirect('login-user')
 
+
 @csrf_exempt
 def upload_media(request):
     if request.method == 'POST':
-        media_file = request.FILES.get('media')
-        room_name = request.POST.get('room')  # Ensure the room name is passed in the request
-        room = get_object_or_404(Room, name=room_name)  # Fetch the room object
-
-        # Create the message with the media file and the associated room
+        media_file = request.FILES.get('media', None)
+        room_name = request.POST.get('room')
+        room = get_object_or_404(Room, name=room_name)
+        
         message = Message.objects.create(
             media_file=media_file,
             room=room,
-            username=request.user.username  # Assuming you want to store the user as well
+            user=request.user,
+            content=request.POST.get('message', '') 
         )
 
-        # Return the media URL to the frontend
-        return JsonResponse({
-            'media_url': message.media_file.url
-        })
+        if media_file: 
+            return JsonResponse({'media_url': message.media_file.url})
+        return JsonResponse({'message': message.content})  
+
+
+@csrf_exempt
+def upload_audio(request):
+    if request.method == 'POST' and request.FILES.get('audio'):
+        audio_file = request.FILES['audio']
+        room_name = request.POST.get('room')
+        room = get_object_or_404(Room, name=room_name)
+
+        message = Message.objects.create(
+            media_file=audio_file,
+            room=room,
+            user=request.user,
+            content=''  
+        )
+
+        return JsonResponse({'audio_url': message.media_file.url})
+    return JsonResponse({'error': 'Invalid request'}, status=400)

@@ -10,4 +10,5 @@ urlpatterns = [
     path('create-room/', chat_views.create_room, name='create-room'),
     path('join-room/<str:room_name>/', chat_views.join_room, name='join-room'),
     path('upload_media/',chat_views.upload_media,name='upload_media'),
+    path('upload-audio/', chat_views.upload_audio, name='upload_audio'),
 ]
