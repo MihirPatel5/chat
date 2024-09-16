@@ -43,6 +43,7 @@
             border-radius: 15px;
             margin-bottom: 5px;
             max-width: fit-content;
+            word-wrap: break-word;
         }
 
         .chat__item--mine {
@@ -85,7 +86,6 @@
             border: none;
             border-radius: 50px;
             cursor: pointer;
-            display: math;
             margin-left: 280px;
         }
 
@@ -107,15 +107,10 @@
             border: none;
             border-radius: 10px;
             cursor: pointer;
-            text-decoration: blink;
         }
 
         .button:hover {
             background-color: #0a7d66;
-        }
-
-        .button i {
-            margin-right: 5px;
         }
 
         .chat__date-header {
@@ -126,6 +121,11 @@
 
         img.media {
             max-width: 100%;
+            margin-top: 10px;
+        }
+
+        audio {
+            display: block;
             margin-top: 10px;
         }
     </style>
@@ -141,9 +141,9 @@
         <div class="input-container">
             <form id="chat-message-form">
                 <input type="text" id="id_message_send_input" placeholder="Type your message">
-                <input type="file" id="id_media_send_input" accept="image/*,video/*">
+                <input type="file" id="id_media_send_input" accept="image/*,video/*" name="media">
                 <button id="recordButton"><i class="fas fa-solid fa-microphone-slash"></i></button>
-                <button type="submit"><i class="fas fa-solid fa-paper-plane"></i></button>
+                <button type="submit" name="media"><i class="fas fa-solid fa-paper-plane"></i></button>
             </form>
         </div>
         <div class="container">
@@ -163,6 +163,91 @@
             'ws://' + window.location.host + '/ws/chat/' + roomName + '/'
         );
 
+        chatSocket.onmessage = function (e) {
+            const data = JSON.parse(e.data);
+
+            if (data.messages) {
+                displayMessages(data.messages);
+            } else {
+                appendMessage(data.username, data.message, data.media_url, data.time);
+            }
+        };
+
+        chatSocket.onclose = function (e) {
+            console.error('Chat socket closed unexpectedly');
+        };
+
+        document.querySelector('#id_message_send_input').focus();
+        document.querySelector('#id_message_send_input').onkeyup = function (e) {
+            if (e.keyCode === 13) {
+                sendMessage();
+            }
+        };
+
+        document.querySelector('#chat-message-form').onsubmit = function (e) {
+            e.preventDefault();
+            sendMessage();
+        };
+
+        function sendMessage() {
+            const messageInputDom = document.querySelector('#id_message_send_input');
+            const message = messageInputDom.value;
+
+            const mediaInputDom = document.querySelector('#id_media_send_input');
+            const mediaFile = mediaInputDom.files.length > 0 ? mediaInputDom.files[0] : null;
+
+            const formData = new FormData();
+            formData.append('message', message);
+            if (mediaFile) {
+                formData.append('media', mediaFile);
+            }
+
+            fetch(`/upload_media/`, {
+                method: 'POST',
+                body: formData,
+            })
+                .then(response => response.json())
+                .then(data => {
+                    chatSocket.send(JSON.stringify({
+                        'message': message,
+                        'media_url': data.media_url || ''
+                    }));
+                })
+                .catch(error => console.error('Error uploading media:', error));
+
+            messageInputDom.value = '';
+            mediaInputDom.value = '';
+        }
+
+        function displayMessages(messages) {
+            messages.forEach(msg => {
+                appendMessage(msg.username, msg.message, msg.media_url, msg.time, msg.day_label);
+            });
+        }
+
+        function appendMessage(username, message, media_url, time, day_label) {
+            const messageContainer = document.querySelector('#chat-log');
+
+            let mediaElement = '';
+            if (media_url) {
+                if (media_url.endsWith('.mp3')) {
+                    mediaElement = `<audio controls><source src="${media_url}" type="audio/mpeg"></audio>`;
+                } else {
+                    mediaElement = `<img src="${media_url}" alt="media" style="max-width: 200px;">`;
+                }
+            }
+
+            const messageElement = `
+            <div class="chat__item${username === "{{ request.user.username }}" ? ' chat__item--mine' : ''}">
+                <div class="chat__username">${username}</div>
+                <div>${message ? message : mediaElement}</div>
+                <div class="chat__time">${new Date(time).toLocaleTimeString()} - ${day_label}</div>
+            </div>
+            `;
+
+            messageContainer.innerHTML += messageElement;
+        }
+
         function formatDateLabel(date) {
             const messageDate = new Date(date);
             const today = new Date();
@@ -177,6 +262,73 @@
                 return messageDate.toLocaleDateString();
             }
         }
+        const chatLog = document.getElementById('chat-log');
+
+        // Helper function to append a date header
+        function appendDateHeader(dayLabel) {
+            const dateHeader = document.createElement('div');
+            dateHeader.classList.add('chat__date-header');
+            dateHeader.textContent = dayLabel;
+            chatLog.appendChild(dateHeader);
+        }
+
+        // Helper function to append a message
+        function appendMessage(username, message, mediaUrl, time, isMine) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('chat__item');
+            if (isMine) {
+                messageDiv.classList.add('chat__item--mine');
+            }
+
+            const usernameDiv = document.createElement('div');
+            usernameDiv.classList.add('chat__username');
+            usernameDiv.textContent = username;
+
+            const messageContent = document.createElement('div');
+            if (message) {
+                messageContent.textContent = message;
+            } else if (mediaUrl) {
+                const img = document.createElement('img');
+                img.src = mediaUrl;
+                img.classList.add('media');
+                messageContent.appendChild(img);
+            }
+
+            const timeDiv = document.createElement('div');
+            timeDiv.classList.add('chat__time');
+            timeDiv.textContent = time;
+
+            messageDiv.appendChild(usernameDiv);
+            messageDiv.appendChild(messageContent);
+            messageDiv.appendChild(timeDiv);
+
+            chatLog.appendChild(messageDiv);
+        }
+
+        // Process the received messages
+        function processMessages(messages) {
+            messages.forEach(item => {
+                if (item.day_label) {
+                    // This is a date label, append it as a header
+                    appendDateHeader(item.day_label);
+                } else {
+                    // This is a message
+                    const isMine = item.username === username;
+                    appendMessage(item.username, item.message, item.media_url, item.time, isMine);
+                }
+            });
+        }
+
+        // Example WebSocket onmessage handler (assuming your WebSocket connection is set up)
+        chatSocket.onmessage = function (e) {
+            const data = JSON.parse(e.data);
+            if (data.messages) {
+                processMessages(data.messages);
+            } else {
+                const isMine = data.username === username;
+                appendMessage(data.username, data.message, data.media_url, data.time, isMine);
+            }
+        };
 
         function renderMessages(messages) {
             const chatLog = document.querySelector('#chat-log');
@@ -201,134 +353,15 @@
                 const ticks = isMine ? `<span class="ticks">${msg.is_read ? '✓✓' : '✓'}</span>` : '';
 
                 msgElement.innerHTML = `
-            <div class="chat__username">${msg.username}</div>
-            <div>${msg.message ? msg.message : ''}</div>
-            ${msg.media_url ? `<img class="media" src="${msg.media_url}" alt="media file">` : ''}
-            ${msg.audio_url ? `<audio controls><source src="${msg.audio_url}" type="audio/mpeg"></audio>` : ''}
-            <div class="chat__time">${new Date(msg.time).toLocaleTimeString()} ${ticks}</div>
+                <div class="chat__username">${msg.username}</div>
+                <div>${msg.message ? msg.message : ''}</div>
+                ${msg.media_url ? `<img class="media" src="${msg.media_url}" alt="media">` : ''}
+                <div class="chat__time">${msg.time} ${ticks}</div>
         `;
                 chatLog.appendChild(msgElement);
             });
-
-            chatLog.scrollTop = chatLog.scrollHeight;  
         }
-
-        chatSocket.onmessage = function (e) {
-            const data = JSON.parse(e.data);
-
-            if (data.messages) {
-                renderMessages(data.messages);
-            } else {
-                const isMine = data.username === username;
-                const chatLog = document.querySelector('#chat-log');
-
-                const msgElement = document.createElement('div');
-                msgElement.className = 'chat__item' + (isMine ? ' chat__item--mine' : '');
-
-                const ticks = isMine ? `<span class="ticks">${data.is_read ? '✓✓' : '✓'}</span>` : '';
-
-                const messageDate = formatDateLabel(data.time);
-
-                const lastDateHeader = chatLog.querySelector('.chat__date-header:last-child');
-                if (!lastDateHeader || lastDateHeader.innerText !== messageDate) {
-                    const dateHeader = document.createElement('div');
-                    dateHeader.className = 'chat__date-header';
-                    dateHeader.innerText = messageDate;
-                    chatLog.appendChild(dateHeader);
-                }
-
-                msgElement.innerHTML = `
-            <div class="chat__username">${data.username}</div>
-            <div>${data.message ? data.message : ''}</div>
-            ${data.media_url ? `<img class="media" src="${data.media_url}" alt="media file">` : ''}
-            ${data.audio_url ? `<audio controls><source src="${data.audio_url}" type="audio/mpeg"></audio>` : ''}
-            <div class="chat__time">${new Date(data.time).toLocaleTimeString()} ${ticks}</div>
-        `;
-                chatLog.appendChild(msgElement);
-                chatLog.scrollTop = chatLog.scrollHeight;
-            }
-        };
-
-        document.querySelector('#chat-message-form').onsubmit = function (e) {
-            e.preventDefault();
-            const messageInputDom = document.querySelector('#id_message_send_input');
-            const mediaInputDom = document.querySelector('#id_media_send_input');
-            const message = messageInputDom.value;
-            const mediaFile = mediaInputDom.files[0];
-            const roomName = "{{ room.name }}";
-
-            if (message || mediaFile) {
-                const formData = new FormData();
-                formData.append('message', message);
-                formData.append('room', roomName);
-                if (mediaFile) {
-                    formData.append('media', mediaFile);
-                }
-
-                fetch(`/upload_media/`, {
-                    method: 'POST',
-                    body: formData,
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        chatSocket.send(JSON.stringify({
-                            'message': message,
-                            'media_url': data.media_url || '' 
-                        }));
-                    })
-                    .catch(error => console.error('Error uploading media:', error));
-
-                messageInputDom.value = '';
-                mediaInputDom.value = '';
-            }
-        };
-
-        let mediaRecorder;
-        let audioChunk = [];
-
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(stream => {
-                mediaRecorder = new MediaRecorder(stream);
-                mediaRecorder.ondataavailable = event => {
-                    audioChunk.push(event.data);
-                };
-
-                mediaRecorder.onstop = () => {
-                    const audioBlob = new Blob(audioChunk, { type: 'audio/mpeg' });
-                    const audioFile = new File([audioBlob], 'audio_message.mp3');
-                    uploadAudio(audioFile);
-                };
-            });
-
-        document.getElementById('recordButton').onclick = () => {
-            if (mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
-            } else {
-                audioChunk = [];
-                mediaRecorder.start();
-            }
-        };
-
-        function uploadAudio(audioFile) {
-            const formData = new FormData();
-            formData.append('audio', audioFile);
-            formData.append('room', roomName);
-
-            fetch('/upload-audio/', {
-                method: 'POST',
-                body: formData,
-            })
-                .then(response => response.json())
-                .then(data => {
-                    chatSocket.send(JSON.stringify({
-                        'audio_url': data.audio_url
-                    }));
-                })
-                .catch(error => console.error('Error uploading audio:', error));
-        }
-
     </script>
-
 </body>
 
 </html>

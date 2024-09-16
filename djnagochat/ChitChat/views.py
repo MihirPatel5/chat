@@ -78,16 +78,22 @@ def upload_media(request):
         room_name = request.POST.get('room')
         room = get_object_or_404(Room, name=room_name)
         
-        message = Message.objects.create(
-            media_file=media_file,
-            room=room,
-            user=request.user,
-            content=request.POST.get('message', '') 
-        )
-
-        if media_file: 
+        if media_file:
+            print('--------------------------', media_file)
+            message = Message.objects.create(
+                media_file=media_file,
+                room=room,
+                user=request.user,
+                content=request.POST.get('message', '') 
+            )
+        
+            print('+++++++++++++++++++++++++++++++++++++++', message.media_file.path)
             return JsonResponse({'media_url': message.media_file.url})
-        return JsonResponse({'message': message.content})  
+        
+        # Handle the case where no media file is uploaded
+        return JsonResponse({'error': 'No media file provided'}, status=400)
+
+        
 
 
 @csrf_exempt
@@ -103,6 +109,9 @@ def upload_audio(request):
             user=request.user,
             content=''  
         )
+        print('+++++++++++++++++++++++++++++++++++++++',message.media_file.url)
 
-        return JsonResponse({'audio_url': message.media_file.url})
+        if audio_file:
+            print(message.media_file.path)
+            return JsonResponse({'audio_url': message.media_file.url})
     return JsonResponse({'error': 'Invalid request'}, status=400)
