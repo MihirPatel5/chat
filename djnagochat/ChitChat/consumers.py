@@ -10,7 +10,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.room_name = self.scope['url_route']['kwargs']['room_name']
         self.room_group_name = f"chat_{self.room_name}"
 
-        # Retrieve the room instance
         self.room = await database_sync_to_async(Room.objects.get)(name=self.room_name)
 
         await self.channel_layer.group_add(
@@ -96,7 +95,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         yesterday = today - timedelta(days=1)
 
         formatted_messages = []
-        previous_day_label = None  # To track the last day label added
+        previous_day_label = None  
 
         for msg in messages:
             msg_date = msg['timestamp'].date()
@@ -108,7 +107,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             else:
                 day_label = msg_date.strftime('%d %B, %Y')
 
-            # Add the day label only if it's different from the previous one
             if day_label != previous_day_label:
                 formatted_messages.append({'day_label': day_label})
                 previous_day_label = day_label
@@ -117,7 +115,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'username': msg['user__username'],
                 'message': msg['content'],
                 'media_url': msg['media_file'] if msg['media_file'] else '',
-                'time': msg['timestamp'].strftime('%H:%M'),  # Display only time
+                'time': msg['timestamp'].strftime('%H:%M'),  
                 'is_read': msg['is_read']
             }
 
